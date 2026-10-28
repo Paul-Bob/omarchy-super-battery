@@ -1,0 +1,84 @@
+#!/bin/bash
+# Reads or sets the battery charge limit through the kernel's sysfs files.
+#
+#   charge-limit status        prints kind / value / writable / battery lines
+#   charge-limit set <value>   a percentage on threshold laptops,
+#                              Long_Life or Standard on conservation-mode ones
+#
+# Two kernel interfaces exist. charge_control_end_threshold takes any
+# percentage (ThinkPad, ASUS, Dell, Framework...). charge_types offers named
+# modes; Lenovo IdeaPad and Legion expose their conservation mode there as
+# Long_Life, with the cap chosen by the firmware. The number is preferred
+# when a laptop has both.
+#
+# SUPER_BATTERY_SYSFS points it at a fake power_supply tree for tests.
+set -euo pipefail
+
+root="${SUPER_BATTERY_SYSFS:-/sys/class/power_supply}"
+
+fail() {
+  echo "charge-limit: $*" >&2
+  exit 1
+}
+
+# Peripheral batteries (mice, headsets) are type Battery too, but have no
+# charge controls, so they fall through the -e checks.
+find_battery() {
+  local dir
+  for dir in "$root"/*; do
+    [[ -r $dir/type && $(<"$dir/type") == "Battery" ]] || continue
+    if [[ -e $dir/charge_control_end_threshold ]] || charge_types_offer_long_life "$dir"; then
+      printf '%s\n' "$dir"
+      return 0
+    fi
+  done
+  return 1
+}
+
+charge_types_offer_long_life() {
+  [[ -r $1/charge_types ]] && [[ " $(tr -d '[]' <"$1/charge_types") " == *" Long_Life "* ]]
+}
+
+# charge_types reads like "Fast [Standard] Long_Life"; the bracketed one is
+# current.
+current_charge_type() {
+  grep -o '\[[^]]*\]' "$1/charge_types" | tr -d '[]'
+}
+
+status() {
+  local battery
+  if ! battery=$(find_battery); then
+    printf 'kind\tnone\n'
+    return 0
+  fi
+
+  if [[ -e $battery/charge_control_end_threshold ]]; then
+    printf 'kind\tthreshold\nvalue\t%s\n' "$(<"$battery/charge_control_end_threshold")"
+    [[ -w $battery/charge_control_end_threshold ]] && printf 'writable\t1\n' || printf 'writable\t0\n'
+  else
+    printf 'kind\ttypes\nvalue\t%s\n' "$(current_charge_type "$battery")"
+    [[ -w $battery/charge_types ]] && printf 'writable\t1\n' || printf 'writable\t0\n'
+  fi
+  printf 'battery\t%s\n' "${battery##*/}"
+}
+
+set_limit() {
+  local value="$1" battery
+  battery=$(find_battery) || fail "this laptop has no charge limit control"
+
+  if [[ -e $battery/charge_control_end_threshold ]]; then
+    [[ $value =~ ^[0-9]+$ ]] && (( value >= 50 && value <= 100 )) || fail "limit must be 50-100, got '$value'"
+    [[ -w $battery/charge_control_end_threshold ]] || fail "not writable yet: run the one-time setup"
+    printf '%s\n' "$value" >"$battery/charge_control_end_threshold"
+  else
+    [[ $value == Long_Life || $value == Standard ]] || fail "mode must be Long_Life or Standard, got '$value'"
+    [[ -w $battery/charge_types ]] || fail "not writable yet: run the one-time setup"
+    printf '%s\n' "$value" >"$battery/charge_types"
+  fi
+}
+
+case "${1:-}" in
+  status) status ;;
+  set) (( $# == 2 )) || fail "usage: charge-limit set <value>"; set_limit "$2" ;;
+  *) fail "usage: charge-limit status | set <value>" ;;
+esac

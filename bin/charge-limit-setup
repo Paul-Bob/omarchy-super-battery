@@ -1,0 +1,43 @@
+#!/bin/bash
+# One-time setup, run as root. The battery popup starts it with pkexec when
+# the charge limit is first switched on.
+#
+# Installs a udev rule that hands the charge limit files to the primary
+# group of the user who asked, so the popup can change the limit without a
+# password afterwards. udev re-applies it on every boot. To undo, delete
+# the rule file below and reboot.
+set -euo pipefail
+
+RULE=/etc/udev/rules.d/90-super-battery-charge-limit.rules
+
+fail() {
+  echo "charge-limit-setup: $*" >&2
+  exit 1
+}
+
+(( EUID == 0 )) || fail "run as root"
+
+uid="${PKEXEC_UID:-${SUDO_UID:-}}"
+[[ $uid =~ ^[0-9]+$ ]] || fail "start this with pkexec or sudo, so it knows which user to allow"
+group=$(id -gn "$uid") || fail "no user with uid $uid"
+[[ $group =~ ^[a-z_][a-z0-9_-]*$ ]] || fail "unexpected group name '$group'"
+
+# One line per file and no shell: udev expands $-sequences inside RUN, and
+# TEST keeps each line to batteries that actually have that file.
+rule_line() {
+  printf 'ACTION=="add|change", SUBSYSTEM=="power_supply", ATTR{type}=="Battery", TEST=="%s", RUN+="/usr/bin/chgrp %s /sys%%p/%s", RUN+="/usr/bin/chmod g+w /sys%%p/%s"\n' "$1" "$group" "$1" "$1"
+}
+
+{
+  echo "# Installed by the Super Battery Omarchy plugin: lets group '$group' change the"
+  echo "# battery charge limit without a password. Delete this file and reboot to undo."
+  rule_line charge_control_end_threshold
+  rule_line charge_control_start_threshold
+  rule_line charge_types
+} >"$RULE.tmp"
+chmod 0644 "$RULE.tmp"
+mv "$RULE.tmp" "$RULE"
+
+udevadm control --reload
+udevadm trigger --subsystem-match=power_supply --action=change
+udevadm settle --timeout=10
