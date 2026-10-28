@@ -47,6 +47,8 @@ If you ran the charge limit setup, also delete
 Levels go from 5% to 50%, and Critical always stays below Warning: dragging
 one level past the other moves both. The ‹ › arrows step through the sounds
 and play each one; **Test** plays the chosen sound at your volume.
+**Add a sound file** lets you pick your own (see
+[Your own sounds](#your-own-sounds)).
 
 ## Automations
 
@@ -70,9 +72,17 @@ skipped.
 
 ## Your own sounds
 
-Put `.oga`, `.ogg`, `.wav`, `.flac`, `.mp3` or `.opus` files (or symlinks to
-them) in `~/.local/share/sounds/super-battery/`. The ‹ › arrows include them
-the next time you open the popup.
+Open Warning or Critical and click **Add a sound file**. Omarchy's file
+chooser opens. The file you pick is copied into
+`~/.local/share/sounds/super-battery/`, selected for that alert, and played.
+The copy keeps working if you move or delete the original.
+
+Songs work too. **Test** turns into **Stop** while a sound plays, and
+plugging in stops an alert sound that is still playing.
+
+The chooser accepts `.oga`, `.ogg`, `.wav`, `.flac`, `.mp3` and `.opus`. You
+can also put such files (or symlinks to them) in that folder yourself; the
+‹ › arrows include them the next time you open the popup.
 
 ## Charge limit
 
@@ -102,6 +112,7 @@ Omarchy 4 (tested on 4.0.6). Everything else ships with Omarchy:
 | `pipewire-audio` | `pw-play` plays the sounds |
 | `sound-theme-freedesktop` | the built-in sounds |
 | `power-profiles-daemon` | `powerprofilesctl` switches to Power Saver |
+| `xdg-desktop-portal-gtk` | the file chooser behind `omarchy-file-select` |
 | `polkit` | `pkexec` for the one-time charge limit setup |
 | `systemd` | `udevadm` loads the charge limit rule |
 
@@ -125,7 +136,8 @@ updates to that widget do not reach this copy on their own. See
 ```bash
 node test/test_model.js         # alert rules, power saver, charge limit, settings
 test/test_charge_limit.sh       # bin/charge-limit against fake sysfs trees
-test/run-harness.sh             # the service against real UPower and pw-play; plays one quiet sound
+test/test_add_sound.sh          # bin/add-sound with a stand-in file chooser
+test/run-harness.sh             # the service against real UPower and pw-play; plays a few short sounds quietly
 ```
 
 ## License

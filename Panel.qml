@@ -47,6 +47,28 @@ Panel {
     root.expanded = root.expanded === section ? "" : section
   }
 
+  // The file chooser is a normal window, and the open popup's layer would
+  // cover it, so the popup closes while the chooser is up. Only the bar the
+  // button was pressed on reopens it afterwards.
+  property bool waitingForSound: false
+
+  function addSound(stage) {
+    if (!root.service || root.service.addingSound) return
+    root.waitingForSound = true
+    root.close()
+    root.service.addSound(stage)
+  }
+
+  Connections {
+    target: root.service
+    function onAddSoundFinished(stage) {
+      if (!root.waitingForSound) return
+      root.waitingForSound = false
+      root.expanded = stage
+      root.open()
+    }
+  }
+
   Timer {
     interval: 1000
     running: !root.service
@@ -607,6 +629,8 @@ Panel {
               stage: "warning"
               value: root.sb.warningSound
             }
+
+            AddSoundButton { stage: "warning" }
           }
 
           SettingRow {
@@ -633,6 +657,8 @@ Panel {
               stage: "critical"
               value: root.sb.criticalSound
             }
+
+            AddSoundButton { stage: "critical" }
 
             DetailLabel { text: "Repeat" }
 
@@ -1045,15 +1071,36 @@ Panel {
       onClicked: picker.move(1)
     }
 
+    // Turns into Stop while any sound plays, since a song can run for minutes.
     Button {
-      text: "Test"
-      iconText: "󰐊"
+      readonly property bool playing: !!root.service && root.service.playing
+      text: playing ? "Stop" : "Test"
+      iconText: playing ? "󰓛" : "󰐊"
       fontSize: Style.font.bodySmall
       foreground: root.bar.foreground
       fontFamily: root.bar.fontFamily
       bordered: true
-      onClicked: if (root.service) root.service.testSound(picker.stage)
+      onClicked: {
+        if (!root.service) return
+        if (playing) root.service.stopSound()
+        else root.service.testSound(picker.stage)
+      }
     }
+  }
+
+  // Picks a file with the desktop file chooser, adds it to the sounds the
+  // arrows step through, and selects it for this alert.
+  component AddSoundButton: Button {
+    property string stage: "warning"
+
+    width: parent ? parent.width - parent.leftPadding - parent.rightPadding : 0
+    text: "Add a sound file"
+    iconText: "󰐕"
+    fontSize: Style.font.bodySmall
+    foreground: root.bar.foreground
+    fontFamily: root.bar.fontFamily
+    bordered: true
+    onClicked: root.addSound(stage)
   }
 
   component InfoPair: Row {

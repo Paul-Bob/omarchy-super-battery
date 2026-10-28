@@ -1,0 +1,55 @@
+#!/bin/bash
+# Picks a sound file with the desktop file chooser and copies it into Super
+# Battery's custom sound folder, so the sound keeps working if the original
+# is moved or deleted. Prints the copied file's path.
+#   add-sound <sound-dir> [title]
+# Exit codes: 0 copied (or already there), 1 nothing picked, 2 failed.
+# SUPER_BATTERY_FILE_SELECT replaces omarchy-file-select in tests.
+set -u
+
+dir=${1:?usage: add-sound <sound-dir> [title]}
+title=${2:-Choose a sound}
+picker=${SUPER_BATTERY_FILE_SELECT:-omarchy-file-select}
+
+picked=$("$picker" --title "$title" --extensions "oga ogg wav flac mp3 opus")
+status=$?
+[ "$status" -eq 1 ] && exit 1
+src=$(printf '%s\n' "$picked" | head -n 1)
+if [ "$status" -ne 0 ] || [ -z "$src" ]; then
+  echo "The file chooser did not open" >&2
+  exit 2
+fi
+
+name=${src##*/}
+case "${name,,}" in
+  *.oga|*.ogg|*.wav|*.flac|*.mp3|*.opus) ;;
+  *) echo "Not a sound file Super Battery can play: $name" >&2; exit 2 ;;
+esac
+if [ ! -f "$src" ]; then
+  echo "File not found: $src" >&2
+  exit 2
+fi
+
+mkdir -p "$dir" || { echo "Could not create $dir" >&2; exit 2; }
+dir=$(cd "$dir" && pwd)
+if [ "$(cd "$(dirname "$src")" && pwd)" = "$dir" ]; then
+  echo "$dir/$name"
+  exit 0
+fi
+
+# A different file with the same name gets a numbered name; the same file
+# picked twice reuses the first copy.
+dest="$dir/$name"
+base=${name%.*}
+ext=${name##*.}
+n=2
+while [ -e "$dest" ] && ! cmp -s "$src" "$dest"; do
+  dest="$dir/$base-$n.$ext"
+  n=$((n + 1))
+done
+
+if [ ! -e "$dest" ] && ! cp -- "$src" "$dest"; then
+  echo "Could not copy $name into $dir" >&2
+  exit 2
+fi
+echo "$dest"

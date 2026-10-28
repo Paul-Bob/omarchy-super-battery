@@ -19,11 +19,12 @@ Item {
 
   readonly property string pluginId: (manifest && manifest.id) || "paulbob.super-battery"
   readonly property string home: Quickshell.env("HOME")
-  // Settable so the test harness can point it at a fake shell.json.
+  // Both settable so the test harness can point them at scratch files.
   property string shellConfigPath: home + "/.config/omarchy/shell.json"
-  readonly property string customSoundDir: home + "/.local/share/sounds/super-battery"
+  property string customSoundDir: home + "/.local/share/sounds/super-battery"
   readonly property string chargeLimitBin: localPath("bin/charge-limit")
   readonly property string chargeSetupBin: localPath("bin/charge-limit-setup")
+  readonly property string addSoundBin: localPath("bin/add-sound")
 
   property var settings: Model.normalizeSettings({})
   property var storedEntry: ({})
@@ -35,11 +36,17 @@ Item {
   readonly property int level: Model.batteryLevel(UPower.displayDevice)
   readonly property bool discharging: Model.isDischarging(UPower.displayDevice, UPower.onBattery, UPowerDeviceState.Discharging)
   readonly property bool playing: soundProc.running
+  readonly property bool addingSound: addSoundProc.running
   readonly property bool chargeLimitNeedsSetup: chargeStatus.kind !== "none" && !chargeStatus.writable
     && Model.chargeLimitTarget(chargeStatus, settings) !== ""
 
   property string pendingSound: ""
   property bool stoppingSound: false
+  property string addingStage: ""
+
+  // Sent when the file chooser closes, picked or not, so the bar that
+  // opened it can bring its popup back.
+  signal addSoundFinished(string stage)
   // Set at startup and after the one-time setup: once both the settings and
   // the charge status are known, a limit that is switched on gets written
   // if the laptop lost it. Never the reverse: an unloaded settings file
@@ -128,8 +135,26 @@ Item {
     soundProc.running = true
   }
 
+  function stopSound() {
+    root.pendingSound = ""
+    if (!soundProc.running) return
+    root.stoppingSound = true
+    soundProc.running = false
+  }
+
   function testSound(stage) {
     root.play(stage === "critical" ? root.settings.criticalSound : root.settings.warningSound)
+  }
+
+  // Opens Omarchy's file chooser; bin/add-sound copies the pick into
+  // customSoundDir. The new sound is selected for the alert and played.
+  function addSound(stage) {
+    if (addSoundProc.running) return
+    root.lastError = ""
+    root.addingStage = stage
+    addSoundProc.command = [root.addSoundBin, root.customSoundDir,
+      stage === "critical" ? "Choose a sound for Critical" : "Choose a sound for Warning"]
+    addSoundProc.running = true
   }
 
   function notify(kind) {
@@ -182,6 +207,25 @@ Item {
           + (String(soundErr.text || "").trim() ? ": " + String(soundErr.text).trim() : "")
       root.stoppingSound = false
       root.startPendingSound()
+    }
+  }
+
+  // Exit 1 means the chooser was closed without a pick.
+  Process {
+    id: addSoundProc
+    stdout: StdioCollector { id: addOut; waitForEnd: true }
+    stderr: StdioCollector { id: addErr; waitForEnd: true }
+    onExited: function(exitCode) {
+      var stage = root.addingStage
+      var path = String(addOut.text || "").trim()
+      if (exitCode === 0 && path) {
+        root.setSetting(stage === "critical" ? "criticalSound" : "warningSound", path)
+        root.scanSounds()
+        root.play(path)
+      } else if (exitCode !== 1) {
+        root.lastError = String(addErr.text || "").trim() || "Could not add the sound"
+      }
+      root.addSoundFinished(stage)
     }
   }
 
@@ -259,6 +303,9 @@ Item {
     repeat: true
     onTriggered: root.check()
   }
+
+  // A long alert sound, such as a song, stops once the charger goes in.
+  onDischargingChanged: if (!discharging) root.stopSound()
 
   Connections {
     target: UPower

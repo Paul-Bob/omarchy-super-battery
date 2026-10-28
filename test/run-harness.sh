@@ -14,4 +14,12 @@ cat >"$work/shell.json" <<'JSON'
   {"id": "paulbob.super-battery", "warningLevel": 33, "futureField": "kept"}
 ]}}}
 JSON
+# Stands in for omarchy-file-select: "picks" the freedesktop bell.
+cat >"$work/fake-file-select" <<'SH'
+#!/bin/bash
+echo /usr/share/sounds/freedesktop/stereo/bell.oga
+SH
+chmod +x "$work/fake-file-select"
+export SUPER_BATTERY_FILE_SELECT="$work/fake-file-select"
+
 timeout 25 quickshell -p "$work" 2>&1 | grep -E 'PASS|FAIL|ERROR|Warning:'
