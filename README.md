@@ -1,8 +1,8 @@
 # Super Battery for Omarchy
 
-Omarchy's battery popup, plus low battery alerts with sounds, an automatic
-power saver, and a charge limit. Every setting is in the popup itself: click
-the battery in the bar.
+Omarchy's battery popup, plus low battery alerts that play built-in sounds
+or your own files (songs too), an automatic power saver, and a charge limit.
+Every setting is in the popup itself: click the battery in the bar.
 
 ![The Super Battery popup with callouts for each section](preview.png)
 

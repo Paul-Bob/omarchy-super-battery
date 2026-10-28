@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "id": "paulbob.super-battery",
   "name": "Super Battery",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "Paul Bob",
   "license": "MIT",
-  "description": "Omarchy's battery popup, plus low battery alerts with sounds, an auto power saver and a charge limit. Every setting is in the popup.",
+  "description": "Omarchy's battery popup, plus low battery alerts with built-in sounds or your own songs, an auto power saver and a charge limit. Every setting is in the popup.",
   "kinds": [
     "service",
     "bar-widget"
@@ -16,7 +16,7 @@
   },
   "barWidget": {
     "displayName": "Super Battery",
-    "description": "Replaces the Power widget: the same battery popup, with Alerts (warning and critical sounds) and Automations (auto power saver, charge limit) sections you set right there.",
+    "description": "Replaces the Power widget: the same battery popup, with Alerts (warning and critical sounds, including your own files) and Automations (auto power saver, charge limit) sections you set right there.",
     "category": "System",
     "defaultSection": "right",
     "allowMultiple": false,
