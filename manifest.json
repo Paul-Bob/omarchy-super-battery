@@ -5,7 +5,7 @@
   "version": "0.1.0",
   "author": "Paul Bob",
   "license": "MIT",
-  "description": "Omarchy's battery popup, plus low battery alerts with sounds, auto power saver, and a charge limit, all set from the popup.",
+  "description": "Omarchy's battery popup, plus low battery alerts with sounds, an auto power saver and a charge limit. Every setting is in the popup.",
   "kinds": [
     "service",
     "bar-widget"

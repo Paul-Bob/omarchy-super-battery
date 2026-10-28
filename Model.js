@@ -37,7 +37,7 @@ var DEFAULTS = {
 // files: many theme entries are symlinks to these (power-unplug and
 // window-attention among them), and listing both would offer one sound twice.
 var CURATED_SOUNDS = [
-  { file: "dialog-warning.oga", label: "Warning" },
+  { file: "dialog-warning.oga", label: "Warning tone" },
   { file: "alarm-clock-elapsed.oga", label: "Alarm clock" },
   { file: "bell.oga", label: "Bell" },
   { file: "phone-incoming-call.oga", label: "Ringing" },
@@ -316,12 +316,12 @@ function repeatOptions() {
 
 function repeatLabel(minutes) {
   if (minutes === 0) return ""
-  return minutes === 1 ? "repeats every minute" : "repeats every " + minutes + " min"
+  return minutes === 1 ? "every minute" : "every " + minutes + " min"
 }
 
 function alertSummary(on, level, sound, repeatMinutes) {
   if (!on) return "Off"
-  var parts = ["At " + level + "%", soundLabel(sound) + " sound"]
+  var parts = ["At " + level + "%", soundLabel(sound)]
   var repeat = repeatLabel(repeatMinutes || 0)
   if (repeat) parts.push(repeat)
   return parts.join(" · ")
@@ -334,7 +334,7 @@ function saverSummary(settings) {
 function chargeSummary(status, settings) {
   if (status.kind === "none") return "Not supported on this laptop"
   if (status.kind === "types")
-    return settings.chargeLimitOn ? "Conservation mode: the laptop caps the charge (often 60%)" : "Off: charges to 100%"
+    return settings.chargeLimitOn ? "Conservation mode on" : "Off: charges to 100%"
   return settings.chargeLimitOn ? "Stops charging at " + settings.chargeLimit + "%" : "Off: charges to 100%"
 }
 

@@ -215,7 +215,7 @@ run("sound list: curated first in order, then custom, skipping non-audio", () =>
     "/home/u/.local/share/sounds/battery-sound/my_alarm-2.mp3",
     "/home/u/.local/share/sounds/battery-sound/notes.txt", ""
   ], "/home/u/.local/share/sounds/battery-sound", [fd + "/dialog-warning.oga"])
-  assert.deepStrictEqual(opts.map(o => o.label), ["Warning", "Bell", "My alarm 2"])
+  assert.deepStrictEqual(opts.map(o => o.label), ["Warning tone", "Bell", "My alarm 2"])
 })
 
 run("a deleted chosen sound stays selectable and says so", () => {
@@ -229,7 +229,8 @@ run("volume maps to pw-play's 0-1 scale", () => {
 })
 
 run("summaries read as one line", () => {
-  assert.strictEqual(M.alertSummary(true, 10, M.DEFAULTS.criticalSound, 2), "At 10% · Alarm clock sound · repeats every 2 min")
+  assert.strictEqual(M.alertSummary(true, 10, M.DEFAULTS.criticalSound, 2), "At 10% · Alarm clock · every 2 min")
   assert.strictEqual(M.alertSummary(false, 10, "", 0), "Off")
   assert.strictEqual(M.chargeSummary({ kind: "threshold" }, cfg({ chargeLimitOn: true, chargeLimit: 85 })), "Stops charging at 85%")
+  assert.strictEqual(M.chargeSummary({ kind: "types" }, cfg({ chargeLimitOn: true })), "Conservation mode on")
 })
