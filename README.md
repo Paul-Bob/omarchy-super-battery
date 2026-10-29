@@ -4,6 +4,8 @@ Omarchy's battery popup, plus low battery alerts that play built-in sounds
 or your own files (songs too), an automatic power saver, and a charge limit.
 Every setting is in the popup itself: click the battery in the bar.
 
+Listed on [Omarchy Plugins](https://plugins.omarchy.org/plugin.html?id=paulbob.super-battery).
+
 ![The Super Battery popup with callouts for each section](preview.png)
 
 Every row shows its current setting in one line. Click a row to open its
@@ -14,6 +16,9 @@ The rest of the popup (battery info, power profile buttons, right-click on
 the icon to show the percentage) is Omarchy's own and works as before.
 
 ## Install
+
+The [Omarchy Plugins page](https://plugins.omarchy.org/plugin.html?id=paulbob.super-battery)
+gives the first command. Run all three:
 
 ```bash
 omarchy plugin add https://github.com/Paul-Bob/omarchy-super-battery --enable
