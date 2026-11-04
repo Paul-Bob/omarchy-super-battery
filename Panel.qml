@@ -32,21 +32,48 @@ Panel {
   // It can load after the bar does, so keep asking until it is there.
   property var service: null
   property var fallbackService: null
+  property int serviceSearchAttempts: 0
+
   Component {
     id: fallbackServiceComp
     Service {
       shell: root.bar && root.bar.shell ? root.bar.shell : null
     }
   }
+
   readonly property var sb: service ? service.settings : SB.normalizeSettings(root.settings)
   property string expanded: ""
 
   function findService() {
-    if (!root.service && root.bar && root.bar.shell && typeof root.bar.shell.serviceFor === "function")
-      root.service = root.bar.shell.serviceFor(root.moduleName)
-    if (!root.service && !root.fallbackService) {
+    var found = (root.bar && root.bar.shell && typeof root.bar.shell.serviceFor === "function")
+      ? root.bar.shell.serviceFor(root.moduleName)
+      : null
+
+    if (found) {
+      if (root.fallbackService) {
+        root.fallbackService.destroy()
+        root.fallbackService = null
+      }
+      root.service = found
+      return
+    }
+
+    root.serviceSearchAttempts++
+
+    // Allow a grace period for the stock background service to finish starting up.
+    // If the bar still provides no service (e.g. under third-party bars like lobo.islands
+    // where Omarchy's security sandbox restricts serviceFor lookup), instantiate a local
+    // fallback so charge limits, alerts, and settings remain fully functional.
+    if (!root.service && root.serviceSearchAttempts >= 3 && !root.fallbackService) {
       root.fallbackService = fallbackServiceComp.createObject(root)
       root.service = root.fallbackService
+    }
+  }
+
+  Component.onDestruction: {
+    if (root.fallbackService) {
+      root.fallbackService.destroy()
+      root.fallbackService = null
     }
   }
 
@@ -81,8 +108,8 @@ Panel {
   }
 
   Timer {
-    interval: 1000
-    running: !root.service
+    interval: root.fallbackService ? 5000 : 1000
+    running: !root.service || !!root.fallbackService
     repeat: true
     triggeredOnStart: true
     onTriggered: root.findService()
