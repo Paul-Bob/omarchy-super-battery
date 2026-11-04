@@ -31,12 +31,23 @@ Panel {
   // Super Battery: the service holds every setting and all background work.
   // It can load after the bar does, so keep asking until it is there.
   property var service: null
+  property var fallbackService: null
+  Component {
+    id: fallbackServiceComp
+    Service {
+      shell: root.bar && root.bar.shell ? root.bar.shell : null
+    }
+  }
   readonly property var sb: service ? service.settings : SB.normalizeSettings(root.settings)
   property string expanded: ""
 
   function findService() {
     if (!root.service && root.bar && root.bar.shell && typeof root.bar.shell.serviceFor === "function")
       root.service = root.bar.shell.serviceFor(root.moduleName)
+    if (!root.service && !root.fallbackService) {
+      root.fallbackService = fallbackServiceComp.createObject(root)
+      root.service = root.fallbackService
+    }
   }
 
   function set(key, value) {
