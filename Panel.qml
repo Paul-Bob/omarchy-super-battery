@@ -13,6 +13,7 @@ import qs.Commons as Commons
 import qs.Ui
 import "PowerModel.js" as Model
 import "Model.js" as SB
+import "ServiceRegistry.js" as ServiceRegistry
 
 Panel {
   id: root
@@ -30,51 +31,18 @@ Panel {
 
   // Super Battery: the service holds every setting and all background work.
   // It can load after the bar does, so keep asking until it is there.
+  // Replacement bars get a shell whose serviceFor() always returns null, so
+  // the registry finds it there. Never start a Service from here: Omarchy
+  // already runs one under every bar, and a second would repeat every alert.
   property var service: null
-  property var fallbackService: null
-  property int serviceSearchAttempts: 0
-
-  Component {
-    id: fallbackServiceComp
-    Service {
-      shell: root.bar && root.bar.shell ? root.bar.shell : null
-    }
-  }
-
   readonly property var sb: service ? service.settings : SB.normalizeSettings(root.settings)
   property string expanded: ""
 
   function findService() {
-    var found = (root.bar && root.bar.shell && typeof root.bar.shell.serviceFor === "function")
-      ? root.bar.shell.serviceFor(root.moduleName)
-      : null
-
-    if (found) {
-      if (root.fallbackService) {
-        root.fallbackService.destroy()
-        root.fallbackService = null
-      }
-      root.service = found
-      return
-    }
-
-    root.serviceSearchAttempts++
-
-    // Allow a grace period for the stock background service to finish starting up.
-    // If the bar still provides no service (e.g. under third-party bars like lobo.islands
-    // where Omarchy's security sandbox restricts serviceFor lookup), instantiate a local
-    // fallback so charge limits, alerts, and settings remain fully functional.
-    if (!root.service && root.serviceSearchAttempts >= 3 && !root.fallbackService) {
-      root.fallbackService = fallbackServiceComp.createObject(root)
-      root.service = root.fallbackService
-    }
-  }
-
-  Component.onDestruction: {
-    if (root.fallbackService) {
-      root.fallbackService.destroy()
-      root.fallbackService = null
-    }
+    if (root.service) return
+    if (root.bar && root.bar.shell && typeof root.bar.shell.serviceFor === "function")
+      root.service = root.bar.shell.serviceFor(root.moduleName)
+    if (!root.service) root.service = ServiceRegistry.current()
   }
 
   function set(key, value) {
@@ -108,8 +76,8 @@ Panel {
   }
 
   Timer {
-    interval: root.fallbackService ? 5000 : 1000
-    running: !root.service || !!root.fallbackService
+    interval: 1000
+    running: !root.service
     repeat: true
     triggeredOnStart: true
     onTriggered: root.findService()

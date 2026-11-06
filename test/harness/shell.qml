@@ -1,12 +1,14 @@
 // Headless check of Service.qml against the real UPower, pw-play, and
 // charge limit files, with a fake shell.json and a stand-in for the shell's
-// plugin API. No window opens and nothing outside the scratch copy is
-// written: the charge limit is only read, never set.
+// plugin API, and of how Panel.qml finds the service under each kind of bar.
+// No window opens and nothing outside the scratch copy is written: the charge
+// limit is only read, never set.
 //   test/run-harness.sh
 // Plays the warning sound once, quietly, then adds a sound through a fake
 // file chooser and stops it right away. Prints PASS/FAIL lines and exits.
 import QtQuick
 import Quickshell
+import "ServiceRegistry.js" as ServiceRegistry
 
 ShellRoot {
   id: harness
@@ -41,6 +43,65 @@ ShellRoot {
   }
 
   property string addedFor: ""
+
+  // What each kind of bar hands its widgets. Omarchy's built-in bar gives a
+  // shell that finds the plugin's service. A replacement bar gives one whose
+  // serviceFor() always returns null.
+  QtObject {
+    id: builtinShell
+    function serviceFor(id) { return id === "paulbob.super-battery" ? harness.otherService : null }
+  }
+  QtObject {
+    id: replacementShell
+    function serviceFor(id) { return null }
+  }
+  Component {
+    id: fakeBar
+    QtObject {
+      property var shell: null
+      property color foreground: "white"
+      property color barForeground: "white"
+      property string fontFamily: "monospace"
+    }
+  }
+  // Stands in for a second service in the registry checks. It has no settings
+  // file, so it never alerts.
+  Component {
+    id: otherServiceComponent
+    Service {
+      shellConfigPath: harness.scratch("no-such-file.json")
+      customSoundDir: harness.scratch("other-sounds")
+    }
+  }
+
+  property var otherService: null
+  property var builtinPanel: null
+  property var replacementPanel: null
+  property var panelComponent: null
+
+  function makePanel(shellApi) {
+    return harness.panelComponent.createObject(null, { bar: fakeBar.createObject(harness, { shell: shellApi }) })
+  }
+
+  // Waits for the service's own Component.onCompleted, which runs after this
+  // root's. Both widgets start now, so they have had time to do anything they
+  // would do later (the checks run about 6 seconds in).
+  Component.onCompleted: Qt.callLater(harness.setUpPanels)
+
+  function setUpPanels() {
+    harness.expect("the service registers itself", ServiceRegistry.current() === service)
+    harness.otherService = otherServiceComponent.createObject(harness)
+    harness.expect("the newest service is the registered one", ServiceRegistry.current() === harness.otherService)
+    ServiceRegistry.unregister(service)
+    harness.expect("an older service going away keeps the newer one", ServiceRegistry.current() === harness.otherService)
+    ServiceRegistry.register(service)
+
+    harness.panelComponent = Qt.createComponent("Panel.qml")
+    harness.expect("Panel.qml loads", harness.panelComponent.status === Component.Ready, harness.panelComponent.errorString())
+    if (harness.panelComponent.status !== Component.Ready) return
+    harness.builtinPanel = harness.makePanel(builtinShell)
+    harness.replacementPanel = harness.makePanel(replacementShell)
+  }
 
   function scratch(name) {
     return decodeURIComponent(String(Qt.resolvedUrl(name)).replace(/^file:\/\//, ""))
@@ -82,6 +143,20 @@ ShellRoot {
     onTriggered: {
       harness.expect("pw-play ran", harness.sawPlaying)
       harness.expect("sound finished without error", !service.playing && service.lastError === "", service.lastError)
+      harness.expect("under the built-in bar the widget uses serviceFor()",
+        !!harness.builtinPanel && harness.builtinPanel.service === harness.otherService)
+      harness.expect("under a replacement bar the widget finds the running service",
+        !!harness.replacementPanel && harness.replacementPanel.service === service)
+      harness.expect("no widget started a service of its own", ServiceRegistry.current() === service)
+      if (harness.replacementPanel) harness.replacementPanel.set("showPercentage", true)
+      harness.expect("under a replacement bar the widget saves through that service",
+        harness.saved && harness.saved.settings.showPercentage === true)
+      service.setSetting("showPercentage", false)
+
+      ServiceRegistry.register(harness.otherService)
+      if (harness.builtinPanel) harness.builtinPanel.destroy()
+      harness.otherService.destroy()
+
       harness.sawPlaying = false
       service.addSound("critical")
     }
@@ -92,6 +167,9 @@ ShellRoot {
     id: added
     interval: 1500
     onTriggered: {
+      harness.expect("a service going away removes itself", ServiceRegistry.current() === null)
+      ServiceRegistry.register(service)
+
       var copy = harness.scratch("sounds") + "/bell.oga"
       harness.expect("add sound: selects the copy for the alert", harness.addedFor === "critical"
         && service.settings.criticalSound === copy && harness.saved.settings.criticalSound === copy,
