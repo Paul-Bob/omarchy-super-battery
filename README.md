@@ -140,6 +140,9 @@ test/test_add_sound.sh          # bin/add-sound with a stand-in file chooser
 test/run-harness.sh             # the service against real UPower and pw-play; plays a few short sounds quietly
 ```
 
+CI runs the first three on every pull request and every push to `main`. The
+harness needs a real battery, PipeWire and a Wayland session, so run it locally.
+
 ## License
 
 MIT. Parts copied from Omarchy are MIT too; see [NOTICE.md](NOTICE.md).
