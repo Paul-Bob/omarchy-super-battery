@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Services.UPower
 import "Model.js" as Model
+import "ServiceRegistry.js" as ServiceRegistry
 
 // Everything Super Battery does in the background: the two low battery
 // alerts, auto power saver, and keeping the charge limit applied. The bar
@@ -319,7 +320,10 @@ Item {
   }
 
   Component.onCompleted: {
+    ServiceRegistry.register(root)
     root.scanSounds()
     root.refreshCharge()
   }
+
+  Component.onDestruction: ServiceRegistry.unregister(root)
 }

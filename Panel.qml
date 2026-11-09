@@ -13,6 +13,7 @@ import qs.Commons as Commons
 import qs.Ui
 import "PowerModel.js" as Model
 import "Model.js" as SB
+import "ServiceRegistry.js" as ServiceRegistry
 
 Panel {
   id: root
@@ -30,13 +31,18 @@ Panel {
 
   // Super Battery: the service holds every setting and all background work.
   // It can load after the bar does, so keep asking until it is there.
+  // Replacement bars get a shell whose serviceFor() always returns null, so
+  // the registry finds it there. Never start a Service from here: Omarchy
+  // already runs one under every bar, and a second would repeat every alert.
   property var service: null
   readonly property var sb: service ? service.settings : SB.normalizeSettings(root.settings)
   property string expanded: ""
 
   function findService() {
-    if (!root.service && root.bar && root.bar.shell && typeof root.bar.shell.serviceFor === "function")
+    if (root.service) return
+    if (root.bar && root.bar.shell && typeof root.bar.shell.serviceFor === "function")
       root.service = root.bar.shell.serviceFor(root.moduleName)
+    if (!root.service) root.service = ServiceRegistry.current()
   }
 
   function set(key, value) {

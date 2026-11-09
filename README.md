@@ -126,6 +126,11 @@ plays its sound but sends no notification for alerts at 10% or lower.
 Settings are saved on the widget's own entry in `~/.config/omarchy/shell.json`.
 The plugin makes no network requests.
 
+It also works under a replacement bar such as Islands. Omarchy does not give
+widgets under those bars a way to reach their service, so the widget finds it
+through `ServiceRegistry.js`. After `omarchy plugin update`, run
+`omarchy restart shell` to load the new code.
+
 The popup is a copy of Omarchy's Power widget (`shell/plugins/panels/power`,
 Omarchy 4.0.6) with the Alerts and Automations sections added. Omarchy's
 updates to that widget do not reach this copy on their own. See
@@ -137,7 +142,7 @@ updates to that widget do not reach this copy on their own. See
 node test/test_model.js         # alert rules, power saver, charge limit, settings
 test/test_charge_limit.sh       # bin/charge-limit against fake sysfs trees
 test/test_add_sound.sh          # bin/add-sound with a stand-in file chooser
-test/run-harness.sh             # the service against real UPower and pw-play; plays a few short sounds quietly
+test/run-harness.sh             # the service against real UPower and pw-play, and how the widget finds it under each kind of bar; plays a few short sounds quietly
 ```
 
 CI runs the first three on every pull request and every push to `main`. The
