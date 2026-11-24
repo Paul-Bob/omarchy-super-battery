@@ -2,10 +2,11 @@
 # One-time setup, run as root. The battery popup starts it with pkexec when
 # the charge limit is first switched on.
 #
-# Installs a udev rule that hands the charge limit files to the primary
-# group of the user who asked, so the popup can change the limit without a
-# password afterwards. udev re-applies it on every boot. To undo, delete
-# the rule file below and reboot.
+# Installs a udev rule that makes the user who asked the owner of the charge
+# limit files, so the popup can change the limit without a password
+# afterwards. Only that user gets write access: not their group, which other
+# accounts may share. udev re-applies it on every boot. To undo, delete the
+# rule file below and reboot.
 set -euo pipefail
 
 RULE=/etc/udev/rules.d/90-super-battery-charge-limit.rules
@@ -19,18 +20,19 @@ fail() {
 
 uid="${PKEXEC_UID:-${SUDO_UID:-}}"
 [[ $uid =~ ^[0-9]+$ ]] || fail "start this with pkexec or sudo, so it knows which user to allow"
-group=$(id -gn "$uid") || fail "no user with uid $uid"
-[[ $group =~ ^[a-z_][a-z0-9_-]*$ ]] || fail "unexpected group name '$group'"
+user=$(id -un "$uid") || fail "no user with uid $uid"
+[[ $user =~ ^[a-z_][a-z0-9_-]*$ ]] || fail "unexpected user name '$user'"
 
 # One line per file and no shell: udev expands $-sequences inside RUN, and
-# TEST keeps each line to batteries that actually have that file.
+# TEST keeps each line to batteries that actually have that file. chmod also
+# takes away the group write access an earlier version of this rule gave.
 rule_line() {
-  printf 'ACTION=="add|change", SUBSYSTEM=="power_supply", ATTR{type}=="Battery", TEST=="%s", RUN+="/usr/bin/chgrp %s /sys%%p/%s", RUN+="/usr/bin/chmod g+w /sys%%p/%s"\n' "$1" "$group" "$1" "$1"
+  printf 'ACTION=="add|change", SUBSYSTEM=="power_supply", ATTR{type}=="Battery", TEST=="%s", RUN+="/usr/bin/chown %s /sys%%p/%s", RUN+="/usr/bin/chmod u+w,g-w,o-w /sys%%p/%s"\n' "$1" "$uid" "$1" "$1"
 }
 
 {
-  echo "# Installed by the Super Battery Omarchy plugin: lets group '$group' change the"
-  echo "# battery charge limit without a password. Delete this file and reboot to undo."
+  echo "# Installed by the Super Battery Omarchy plugin: lets user '$user' (uid $uid) change"
+  echo "# the battery charge limit without a password. Delete this file and reboot to undo."
   rule_line charge_control_end_threshold
   rule_line charge_control_start_threshold
   rule_line charge_types

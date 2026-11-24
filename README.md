@@ -100,9 +100,10 @@ Laptops offer one of two kinds, and the popup shows whichever yours has:
 
 Changing it needs root once. The first time, the popup shows **Set up**, which
 asks for your password and installs one udev rule,
-`/etc/udev/rules.d/90-super-battery-charge-limit.rules`. The rule gives your
-user's group write access to the charge limit files, so later changes need no
-password. To undo it, delete that file and reboot.
+`/etc/udev/rules.d/90-super-battery-charge-limit.rules`. The rule makes your
+user the owner of the charge limit files, so later changes need no password.
+Other accounts on the laptop still can't change the limit. To undo it, delete
+that file and reboot.
 
 When the limit is on, Super Battery writes it again each time the shell
 starts, for laptops whose firmware forgets it on reboot. It never switches a
