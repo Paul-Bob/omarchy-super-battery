@@ -355,10 +355,16 @@ Panel {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: root.batteryIcon()
-    labelText: root.showPercentage && !vertical
-      ? Math.round(root.batteryFraction * 100) + "%"
-      : ""
+    // Omarchy 4.5 shrinks `text` to the size of one icon, so the percentage
+    // goes in its separate labelText there. Omarchy 4.0 has no labelText and
+    // draws the percentage and icon together in `text`.
+    readonly property bool hasLabelText: "labelText" in button
+    text: root.showPercentage && !vertical && !hasLabelText
+      ? Math.round(root.batteryFraction * 100) + "% " + root.batteryIcon()
+      : root.batteryIcon()
+    Component.onCompleted: if (hasLabelText) button.labelText = Qt.binding(function() {
+      return root.showPercentage && !button.vertical ? Math.round(root.batteryFraction * 100) + "%" : ""
+    })
     slotSize: Style.bar.iconSlot * (root.showPercentage && !vertical ? 2 : 1)
     tooltipText: ""
     onPressed: function(b) {
